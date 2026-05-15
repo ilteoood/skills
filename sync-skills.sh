@@ -3,11 +3,22 @@ set -euo pipefail
 
 # Skills to sync from github/awesome-copilot
 SKILLS=(
+  "codeql"
+  "commit-message-storyteller"
+  "conventional-commit"
+  "create-agentsmd"
+  "create-implementation-plan"
+  "create-llms"
+  "create-readme"
+  "create-specification"
+  "create-technical-spike"
+  "create-tldr-page"
+  "dependabot"
+  "drawio"
+  "gh-cli"
   "git-commit"
   "github-issues"
   "github-release"
-  "dependabot"
-  "gh-cli"
 )
 
 RED='\033[0;31m'
