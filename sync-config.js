@@ -23,7 +23,7 @@ export default [
     ],
   },
   {
-    repo: 'github/mcollina/skills',
+    repo: 'mcollina/skills',
     branch: 'main',
     skills: ['fastify', 'node'],
   },
