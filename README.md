@@ -10,7 +10,7 @@ Each skill is a directory containing a `SKILL.md` file with YAML frontmatter:
 
 ## Available Skills
 
-### From [ilteoood/harness](https://github.com/ilteoood/harness)
+### From [github/awesome-copilot](https://github.com/github/awesome-copilot)
 
 - `codeql/` - Comprehensive guide for GitHub CodeQL including alert management, CLI commands, compiled languages, SARIF output, troubleshooting, and workflow configuration
 - `commit-message-storyteller/` - Generate meaningful commit messages using story-telling principles
@@ -29,12 +29,9 @@ Each skill is a directory containing a `SKILL.md` file with YAML frontmatter:
 - `github-issues/` - Create, update, and manage GitHub issues using MCP tools
 - `github-release/` - Guides through releasing a new version of a GitHub library end-to-end with SemVer versioning and Keep a Changelog formatting
 
-### From [ilteoood/node](https://github.com/ilteoood/node)
+### From [mcollina/skills](https://github.com/mcollina/skills)
 
 - `node/` - Provides domain-specific best practices for Node.js development with TypeScript, covering type stripping, async patterns, error handling, streams, modules, testing, performance, caching, logging, and more.
-
-### From [ilteoood/fastify](https://github.com/ilteoood/fastify)
-
 - `fastify/` - Guides development of Fastify Node.js backend servers and REST APIs using TypeScript or JavaScript. Use when building, configuring, or debugging a Fastify application — including defining routes, implementing plugins, setting up JSON Schema validation, handling errors, optimising performance, managing authentication, configuring CORS and security headers, integrating databases, working with WebSockets, and deploying to production.
 
 ## Usage
