@@ -1,31 +1,34 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process';
-import { mkdir, writeFile, readFile, readdir, stat } from 'fs/promises';
+import { mkdir, writeFile, readFile, readdir, access } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-const SOURCE_REPO = 'github/awesome-copilot';
-const SOURCE_COMMIT = '68120732cf9e69de8bec6a2b06a57b7463222440';
-
-const DEFAULT_SKILLS = [
-  'codeql',
-  'commit-message-storyteller',
-  'conventional-commit',
-  'create-agentsmd',
-  'create-implementation-plan',
-  'create-llms',
-  'create-readme',
-  'create-specification',
-  'create-technical-spike',
-  'create-tldr-page',
-  'dependabot',
-  'drawio',
-  'gh-cli',
-  'git-commit',
-  'github-issues',
-  'github-release',
+const DEFAULT_SOURCES = [
+  {
+    repo: 'github/awesome-copilot',
+    commit: '68120732cf9e69de8bec6a2b06a57b7463222440',
+    skills: [
+      'codeql',
+      'commit-message-storyteller',
+      'conventional-commit',
+      'create-agentsmd',
+      'create-implementation-plan',
+      'create-llms',
+      'create-readme',
+      'create-specification',
+      'create-technical-spike',
+      'create-tldr-page',
+      'dependabot',
+      'drawio',
+      'gh-cli',
+      'git-commit',
+      'github-issues',
+      'github-release',
+    ],
+  },
 ];
 
 const RED = '\x1b[31m';
@@ -50,46 +53,47 @@ function runGh(args) {
 }
 
 function usage() {
-  console.log(`Usage: node sync-skills.js [SKILL...]
+  console.log(`Usage: node sync-skills.js [OPTIONS]
 
-Sync skills from github/awesome-copilot using the GitHub CLI.
+Sync skills from multiple GitHub repos using the GitHub CLI.
 
 OPTIONS:
   -h, --help          Show this help
-  -a, --all           Sync all skills (default)
-  -r, --repo          Source repo (default: github/awesome-copilot)
-  -c, --commit        Source commit SHA
+  -c, --config        Path to config file (default: sync-config.js)
+  --list-skills       List all available skills from configured sources
 
 EXAMPLES:
-  node sync-skills.js                # Sync all skills
-  node sync-skills.js gh-cli         # Sync specific skill
-  node sync-skills.js gh-cli git-commit  # Sync multiple skills
-  node sync-skills.js -r myorg/my-repo -c abc123 my-skill
+  node sync-skills.js                      # Sync all from default sources
+  node sync-skills.js --config my-config.js  # Use custom config
 
-Skills available:
-${DEFAULT_SKILLS.map(s => `  - ${s}`).join('\n')}
+CONFIG FILE FORMAT (sync-config.js):
+  export default [
+    {
+      repo: 'github/owner/repo',
+      commit: 'abc123...',
+      skills: ['skill-a', 'skill-b'],  // empty = all skills
+    },
+  ];
 `);
   process.exit(0);
 }
 
 async function main() {
-  let targetSkills = [...DEFAULT_SKILLS];
-  let sourceRepo = SOURCE_REPO;
-  let sourceCommit = SOURCE_COMMIT;
+  let configPath = 'sync-config.js';
+  let listSkills = false;
 
   const args = process.argv.slice(2);
   while (args.length > 0) {
     const arg = args.shift();
     if (arg === '-h' || arg === '--help') {
       usage();
-    } else if (arg === '-a' || arg === '--all') {
-      targetSkills = [...DEFAULT_SKILLS];
-    } else if (arg === '-r' || arg === '--repo') {
-      sourceRepo = args.shift();
-    } else if (arg === '-c' || arg === '--commit') {
-      sourceCommit = args.shift();
+    } else if (arg === '-c' || arg === '--config') {
+      configPath = args.shift();
+    } else if (arg === '--list-skills') {
+      listSkills = true;
     } else {
-      targetSkills.push(arg);
+      console.error(`Unknown option: ${arg}`);
+      usage();
     }
   }
 
@@ -100,60 +104,90 @@ async function main() {
     process.exit(1);
   }
 
-  logInfo(`Syncing skills from ${sourceRepo}...`);
+  const config = await loadConfig(configPath);
 
-  const treeSha = JSON.parse(runGh(`api repos/${sourceRepo}/git/trees/${sourceCommit}?recursive=1 --jq .`))
-    .tree.find(entry => entry.path === 'skills')?.sha;
-
-  if (!treeSha) {
-    logError(`Could not find skills directory in commit ${sourceCommit}`);
-    process.exit(1);
+  if (listSkills) {
+    for (const source of config) {
+      console.log(`\n${source.repo}@${source.commit}:`);
+      for (const skill of source.skills) {
+        console.log(`  - ${skill}`);
+      }
+    }
+    return;
   }
 
-  async function syncSkill(skill) {
-    logInfo(`Syncing ${skill}...`);
-
-    const skillTree = JSON.parse(runGh(`api repos/${sourceRepo}/git/trees/${sourceCommit}?recursive=1 --jq .`))
-      .tree.find(entry => entry.path === `skills/${skill}`)?.sha;
-
-    if (!skillTree) {
-      logWarn(`Skill '${skill}' not found, skipping...`);
-      return false;
-    }
-
-    const dir = join(__dirname, 'skills', skill);
-    await mkdir(join(dir, 'references'), { recursive: true });
-
-    const blobs = JSON.parse(runGh(`api repos/${sourceRepo}/git/trees/${skillTree}?recursive=1 --jq .`))
-      .tree.filter(entry => entry.type === 'blob');
-
-    for (const blob of blobs) {
-      const relativePath = blob.path.replace(`skills/${skill}/`, '');
-      const localPath = join(dir, relativePath);
-      await mkdir(dirname(localPath), { recursive: true });
-
-      const content = runGh(`api repos/${sourceRepo}/git/blobs/${blob.sha} --jq .content`);
-      const decoded = Buffer.from(content.trim(), 'base64');
-      await writeFile(localPath, decoded);
-      console.log(`  + ${relativePath}`);
-    }
-
-    logInfo(`Synced ${skill}`);
-    return true;
-  }
-
-  for (const skill of targetSkills) {
-    await syncSkill(skill).catch(() => logWarn(`Failed to sync ${skill}`));
+  for (const source of config) {
+    await syncFromSource(source);
   }
 
   logInfo('Sync complete!');
-
-  await updateReadme();
+  await updateReadme(config);
   logInfo('README.md updated');
 }
 
-async function updateReadme() {
+async function loadConfig(configPath) {
+  try {
+    const { default: config } = await import(join(__dirname, configPath));
+    return config;
+  } catch {
+    logWarn(`Config file '${configPath}' not found, using default sources`);
+    return DEFAULT_SOURCES;
+  }
+}
+
+async function syncFromSource(source) {
+  const { repo, commit, skills } = source;
+  logInfo(`Syncing from ${repo}...`);
+
+  const treeSha = JSON.parse(runGh(`api repos/${repo}/git/trees/${commit}?recursive=1 --jq .`))
+    .tree.find(entry => entry.path === 'skills')?.sha;
+
+  if (!treeSha) {
+    logError(`Could not find skills directory in commit ${commit}`);
+    return;
+  }
+
+  for (const skill of skills) {
+    await syncSkill(repo, commit, skill);
+  }
+}
+
+async function syncSkill(repo, commit, skill) {
+  logInfo(`  Syncing ${skill}...`);
+
+  const skillTree = JSON.parse(runGh(`api repos/${repo}/git/trees/${commit}?recursive=1 --jq .`))
+    .tree.find(entry => entry.path === `skills/${skill}`)?.sha;
+
+  if (!skillTree) {
+    logWarn(`    Skill '${skill}' not found, skipping...`);
+    return false;
+  }
+
+  const dir = join(__dirname, 'skills', skill);
+  await mkdir(join(dir, 'references'), { recursive: true });
+
+  const blobs = JSON.parse(runGh(`api repos/${repo}/git/trees/${skillTree}?recursive=1 --jq .`))
+    .tree.filter(entry => entry.type === 'blob');
+
+  for (const blob of blobs) {
+    const relativePath = blob.path.replace(`skills/${skill}/`, '');
+    const localPath = join(dir, relativePath);
+    await mkdir(dirname(localPath), { recursive: true });
+
+    const content = runGh(`api repos/${repo}/git/blobs/${blob.sha} --jq .content`);
+    const decoded = Buffer.from(content.trim(), 'base64');
+    await writeFile(localPath, decoded);
+    console.log(`    + ${relativePath}`);
+  }
+
+  logInfo(`  Synced ${skill}`);
+  return true;
+}
+
+async function updateReadme(config) {
   const skillsDir = join(__dirname, 'skills');
+  const allSkills = config.flatMap(c => c.skills);
+
   let readme = `# Skills
 
 Skills for AI agents following the [skills.sh](https://skills.sh) format.
@@ -165,6 +199,7 @@ Skills for AI agents following the [skills.sh](https://skills.sh) format.
   try {
     const skillDirs = await readdir(skillsDir);
     for (const skill of skillDirs.sort()) {
+      if (!allSkills.includes(skill)) continue;
       const skillMdPath = join(skillsDir, skill, 'SKILL.md');
       try {
         const content = await readFile(skillMdPath, 'utf8');
