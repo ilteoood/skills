@@ -2,7 +2,7 @@
 export default [
   {
     repo: 'github/awesome-copilot',
-    commit: '68120732cf9e69de8bec6a2b06a57b7463222440',
+    branch: 'main',
     skills: [
       'codeql',
       'commit-message-storyteller',
@@ -25,7 +25,7 @@ export default [
   // Example: Add more sources
   // {
   //   repo: 'github/other-org/other-repo',
-  //   commit: 'abc123...',
-  //   skills: ['skill-a', 'skill-b'],  // empty array = all skills from that repo
+  //   branch: 'main',
+  //   skills: ['skill-a', 'skill-b'],
   // },
 ];

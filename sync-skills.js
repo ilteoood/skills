@@ -9,7 +9,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const DEFAULT_SOURCES = [
   {
     repo: 'github/awesome-copilot',
-    commit: '68120732cf9e69de8bec6a2b06a57b7463222440',
+    branch: 'main',
     skills: [
       'codeql',
       'commit-message-storyteller',
@@ -136,14 +136,15 @@ async function loadConfig(configPath) {
 }
 
 async function syncFromSource(source) {
-  const { repo, commit, skills } = source;
-  logInfo(`Syncing from ${repo}...`);
+  const { repo, branch, skills } = source;
+  const commit = source.commit || runGh(`api repos/${repo}/branches/${branch} --jq .commit.sha`).trim();
+  logInfo(`Syncing from ${repo} (${branch})...`);
 
   const treeSha = JSON.parse(runGh(`api repos/${repo}/git/trees/${commit}?recursive=1 --jq .`))
     .tree.find(entry => entry.path === 'skills')?.sha;
 
   if (!treeSha) {
-    logError(`Could not find skills directory in commit ${commit}`);
+    logError(`Could not find skills directory in ${repo}@${branch}`);
     return;
   }
 
