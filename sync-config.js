@@ -22,10 +22,9 @@ export default [
       'github-release',
     ],
   },
-  // Example: Add more sources
-  // {
-  //   repo: 'github/other-org/other-repo',
-  //   branch: 'main',
-  //   skills: ['skill-a', 'skill-b'],
-  // },
+  {
+    repo: 'github/mcollina/skills',
+    branch: 'main',
+    skills: ['fastify', 'node'],
+  },
 ];
