@@ -18,6 +18,7 @@ export default [
       'drawio',
       'gh-cli',
       'git-commit',
+      'git-flow-branch-creator',
       'github-issues',
       'github-release',
     ],
