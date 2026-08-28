@@ -615,6 +615,8 @@ export interface AddOptions {
   subagent?: string[];
   /** Output results as a JSON array (machine-readable, no ANSI codes). */
   json?: boolean;
+  /** Override the default skill container directory name (default: "skills") */
+  skillsDir?: string;
 }
 
 /** One entry per skill in `add --json` output. */
@@ -1173,7 +1175,7 @@ export interface ResolvedSkills {
  */
 async function resolveSkills(
   parsed: ParsedSource,
-  options: { includeInternal: boolean; fullDepth?: boolean },
+  options: { includeInternal: boolean; fullDepth?: boolean; skillsDir?: string },
   spinner: Spinner
 ): Promise<ResolvedSkills> {
   const { includeInternal } = options;
@@ -1187,6 +1189,7 @@ async function resolveSkills(
       skills = await discoverSkills(parsed.localPath!, parsed.subpath, {
         includeInternal,
         fullDepth: options.fullDepth,
+        skillsDir: options.skillsDir,
       });
     } else if (parsed.type === 'well-known' || parsed.type === 'download') {
       spinner.start('Downloading source...');
@@ -1198,6 +1201,7 @@ async function resolveSkills(
       skills = await discoverSkills(downloaded.rootDir, parsed.subpath, {
         includeInternal,
         fullDepth: options.fullDepth,
+        skillsDir: options.skillsDir,
       });
     } else if (parsed.type === 'github' && !options.fullDepth) {
       // Try the blob-based fast install for GitHub sources; skip for --full-depth.
@@ -1238,6 +1242,7 @@ async function resolveSkills(
         skills = await discoverSkills(tempDir, parsed.subpath, {
           includeInternal,
           fullDepth: options.fullDepth,
+          skillsDir: options.skillsDir,
         });
       }
     } else {
@@ -1250,6 +1255,7 @@ async function resolveSkills(
       skills = await discoverSkills(tempDir, parsed.subpath, {
         includeInternal,
         fullDepth: options.fullDepth,
+        skillsDir: options.skillsDir,
       });
     }
   } catch (error) {
@@ -1876,7 +1882,7 @@ export async function runAdd(args: string[], options: AddOptions = {}): Promise<
 
     const resolved = await resolveSkills(
       parsed,
-      { includeInternal, fullDepth: options.fullDepth },
+      { includeInternal, fullDepth: options.fullDepth, skillsDir: options.skillsDir },
       spinner
     );
     const { skills, blobResult } = resolved;
@@ -2879,6 +2885,13 @@ export function parseAddOptions(args: string[]): {
         nextArg = args[i];
       }
       i--; // Back up one since the loop will increment
+    } else if (arg === '--skills-dir') {
+      const value = args[++i];
+      if (value === undefined || value.startsWith('-')) {
+        errors.push('--skills-dir requires a path');
+      } else {
+        options.skillsDir = value;
+      }
     } else if (arg && !arg.startsWith('-')) {
       source.push(arg);
     }
